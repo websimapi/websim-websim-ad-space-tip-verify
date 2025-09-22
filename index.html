@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Websim Ad Space - Tip & Verify</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600&display=swap" rel="stylesheet">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "marked": "https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js",
+      "dompurify": "https://cdn.jsdelivr.net/npm/dompurify/dist/purify.es.min.js"
+    }
+  }
+  </script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="container">
+    <h1 class="title">Ad Space — Tip to Publish an Ad</h1>
+
+    <section class="card">
+      <form id="adForm">
+        <label>Ad Title
+          <input name="title" required maxlength="80" placeholder="Short ad title" />
+        </label>
+
+        <label>Tip Amount (credits)
+          <input name="credits" type="number" required min="1" value="10" />
+        </label>
+
+        <label>Ad Description
+          <textarea name="desc" rows="3" placeholder="Ad copy shown to viewers"></textarea>
+        </label>
+
+        <label>Upload Video (websim only)
+          <input name="video" type="file" accept="video/*" required />
+        </label>
+
+        <div class="row">
+          <button type="submit" class="btn">Submit & Tip</button>
+          <button type="button" id="refreshAds" class="btn muted">Refresh Ads</button>
+        </div>
+
+        <p class="hint">Ads run while the tip exists. We accept only videos uploaded to Websim (using the upload flow).</p>
+      </form>
+    </section>
+
+    <section class="card" id="adsListWrap">
+      <h2 class="subtitle">Active Ads</h2>
+      <div id="adsList">Loading...</div>
+    </section>
+
+    <section class="card" id="watchWrap" hidden>
+      <h2 class="subtitle">Watch Ad (verification)</h2>
+      <div id="watchArea"></div>
+      <div id="watchStatus"></div>
+    </section>
+
+  </main>
+
+  <script type="module" src="app.js"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
+
