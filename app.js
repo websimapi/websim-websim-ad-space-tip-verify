@@ -121,7 +121,7 @@ async function loadAds() {
   // read all ad_tip_v1 records (getList may return newest-first)
   let list = [];
   try {
-    const maybe = roomObj.collection('ad_tip_v1').getList();
+    const maybe = await roomObj.collection('ad_tip_v1').getList();
     list = (maybe && typeof maybe.then === 'function') ? await maybe : (Array.isArray(maybe) ? maybe : []);
   } catch (e) {
     list = [];
