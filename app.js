@@ -210,11 +210,28 @@ async function startWatch(ad) {
   // capture state
   let captures = [];
   let captureInterval = null;
+  let tickInterval = null; // define tickInterval here to be accessible for cleanup
+
+  function cleanupWatch() {
+    if (captureInterval) {
+      clearInterval(captureInterval);
+      captureInterval = null;
+    }
+    if (tickInterval) {
+      clearInterval(tickInterval);
+      tickInterval = null;
+    }
+    stopCamRecording();
+  }
 
   function startCaptures() {
     if (captureInterval) return;
     startCamRecording(); // begin webcam capture when sampling starts
     captureInterval = setInterval(() => {
+      // only capture if video is playing
+      if (v.paused || v.ended) {
+        return;
+      }
       try {
         canvas.width = Math.min(320, v.videoWidth || 320);
         canvas.height = Math.min(180, v.videoHeight || 180);
@@ -236,9 +253,12 @@ async function startWatch(ad) {
 
   // when user plays, start capturing; when paused, stop. On ended, evaluate.
   v.addEventListener('play', ()=> startCaptures());
-  v.addEventListener('pause', ()=> watchStatus.textContent = 'Paused — verification paused.');
+  v.addEventListener('pause', ()=> {
+    watchStatus.textContent = 'Paused — verification paused.';
+    // We don't stop captures here, setInterval checks for paused state
+  });
   v.addEventListener('ended', async ()=> {
-    stopCaptures();
+    cleanupWatch();
     watchStatus.textContent = 'Video ended — verifying...';
     try {
       // build camera blob if available
@@ -258,8 +278,11 @@ async function startWatch(ad) {
 
   // quick "skip-check": if user watches >=50% (based on timeplayed events) we'll submit proof mid-play.
   let lastTime = 0, watchedMs = 0;
-  const tickInterval = setInterval(async () => {
-    if (v.paused || v.ended) return;
+  tickInterval = setInterval(async () => {
+    if (v.paused || v.ended) {
+      lastTime = v.currentTime; // update lastTime when paused to avoid large delta on resume
+      return;
+    }
     const now = v.currentTime;
     const delta = Math.max(0, (now - lastTime) * 1000);
     watchedMs += delta;
@@ -269,8 +292,7 @@ async function startWatch(ad) {
     watchStatus.textContent = `Watching: ${(pct*100).toFixed(0)}% — samples ${captures.length}`;
     // when >=50% watched, submit a proof event (but keep allowing continued capture)
     if (durationMs && pct >= 0.5) {
-      clearInterval(tickInterval);
-      stopCaptures();
+      cleanupWatch(); // Use cleanup function
       try {
         let cameraBlob = (camChunks && camChunks.length) ? new Blob(camChunks, { type: 'video/webm' }) : null;
         const rec = await submitWatchProof(ad, captures, cameraBlob);
