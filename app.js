@@ -258,7 +258,7 @@ async function startWatch(ad) {
 
   // quick "skip-check": if user watches >=50% (based on timeplayed events) we'll submit proof mid-play.
   let lastTime = 0, watchedMs = 0;
-  const tick = setInterval(() => {
+  const tickInterval = setInterval(async () => {
     if (v.paused || v.ended) return;
     const now = v.currentTime;
     const delta = Math.max(0, (now - lastTime) * 1000);
@@ -269,7 +269,7 @@ async function startWatch(ad) {
     watchStatus.textContent = `Watching: ${(pct*100).toFixed(0)}% — samples ${captures.length}`;
     // when >=50% watched, submit a proof event (but keep allowing continued capture)
     if (durationMs && pct >= 0.5) {
-      clearInterval(tick);
+      clearInterval(tickInterval);
       stopCaptures();
       try {
         let cameraBlob = (camChunks && camChunks.length) ? new Blob(camChunks, { type: 'video/webm' }) : null;
