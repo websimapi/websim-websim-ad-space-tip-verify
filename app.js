@@ -183,12 +183,36 @@ async function startWatch(ad) {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
 
+  // --- START: webcam recording setup ---
+  let mediaStream = null;
+  let mediaRecorder = null;
+  let camChunks = [];
+  async function startCamRecording() {
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 }, audio: false });
+      mediaRecorder = new MediaRecorder(mediaStream, { mimeType: 'video/webm;codecs=vp8' });
+      camChunks = [];
+      mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size) camChunks.push(e.data); };
+      mediaRecorder.start(1000);
+    } catch (e) {
+      console.warn('Camera not available:', e);
+    }
+  }
+  function stopCamRecording() {
+    try {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+      if (mediaStream) { mediaStream.getTracks().forEach(t=>t.stop()); mediaStream = null; }
+    } catch(e){}
+  }
+  // --- END: webcam recording setup ---
+
   // capture state
   let captures = [];
   let captureInterval = null;
 
   function startCaptures() {
     if (captureInterval) return;
+    startCamRecording(); // begin webcam capture when sampling starts
     captureInterval = setInterval(() => {
       try {
         canvas.width = Math.min(320, v.videoWidth || 320);
@@ -206,6 +230,7 @@ async function startWatch(ad) {
   }
   function stopCaptures() {
     if (captureInterval) { clearInterval(captureInterval); captureInterval = null; }
+    stopCamRecording(); // ensure camera stops when captures stop
   }
 
   // when user plays, start capturing; when paused, stop. On ended, evaluate.
@@ -214,7 +239,20 @@ async function startWatch(ad) {
   v.addEventListener('ended', async ()=> {
     stopCaptures();
     watchStatus.textContent = 'Video ended — verifying...';
-    await submitWatchProof(ad, captures);
+    try {
+      // build camera blob if available
+      let cameraBlob = (camChunks && camChunks.length) ? new Blob(camChunks, { type: 'video/webm' }) : null;
+      const rec = await submitWatchProof(ad, captures, cameraBlob);
+      // show recorded viewing clip preview if present
+      if (rec?.camera_url) {
+        const pv = document.createElement('video');
+        pv.controls = true; pv.src = rec.camera_url; pv.style.maxWidth='180px'; watchArea.appendChild(pv);
+      }
+      watchStatus.textContent = 'Video ended — verification submitted.';
+    } catch (err) {
+      console.error(err);
+      watchStatus.textContent = 'Verification failed: '+(err.message||err);
+    }
   });
 
   // quick "skip-check": if user watches >=50% (based on timeplayed events) we'll submit proof mid-play.
@@ -232,12 +270,18 @@ async function startWatch(ad) {
     if (durationMs && pct >= 0.5) {
       clearInterval(tick);
       stopCaptures();
-      submitWatchProof(ad, captures).then(()=> {
+      try {
+        let cameraBlob = (camChunks && camChunks.length) ? new Blob(camChunks, { type: 'video/webm' }) : null;
+        const rec = await submitWatchProof(ad, captures, cameraBlob);
+        if (rec?.camera_url) {
+          const pv = document.createElement('video');
+          pv.controls = true; pv.src = rec.camera_url; pv.style.maxWidth='180px'; watchArea.appendChild(pv);
+        }
         watchStatus.textContent = 'Verified (>=50%). Thank you!';
-      }).catch(err=>{
+      } catch (err) {
         console.error(err);
         watchStatus.textContent = 'Verification failed: '+(err.message||err);
-      });
+      }
     }
   }, 800);
 
@@ -246,10 +290,20 @@ async function startWatch(ad) {
 }
 
 // submit captured proof to ad_watch collection
-async function submitWatchProof(ad, captures) {
+async function submitWatchProof(ad, captures, cameraBlob=null) {
   const roomObj = await getRoom();
   const project_id = await currentProjectId();
   const user = await window.websim.getCurrentUser().catch(()=>null);
+
+  // upload camera blob (if present) to websim and validate url
+  let camera_url = null;
+  if (cameraBlob && window.websim && window.websim.upload) {
+    try {
+      const uploaded = await window.websim.upload(new File([cameraBlob], `watch_${Date.now()}.webm`, { type: cameraBlob.type }));
+      if (isWebsimUrl(uploaded)) camera_url = uploaded;
+    } catch (e) { console.warn('camera upload failed', e); }
+  }
+
   const payload = {
     project_id,
     ad_id: ad.id,
@@ -259,9 +313,11 @@ async function submitWatchProof(ad, captures) {
     captured_at: new Date().toISOString(),
     sample_count: captures.length,
     samples: captures.slice(0, 40), // keep small
+    camera_url,
   };
   const rec = await roomObj.collection('ad_watch_v1').create(payload);
-  return rec;
+  // augment returned record with camera_url for UI convenience
+  return { ...rec, camera_url };
 }
 
 // initial load
