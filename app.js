@@ -118,7 +118,13 @@ async function loadAds() {
   adsList.innerHTML = 'Loading...';
   const roomObj = await getRoom();
   // read all ad_tip_v1 records (getList may return newest-first)
-  const list = await roomObj.collection('ad_tip_v1').getList().catch(()=>[]);
+  let list = [];
+  try {
+    const maybe = roomObj.collection('ad_tip_v1').getList();
+    list = (maybe && typeof maybe.then === 'function') ? await maybe : (Array.isArray(maybe) ? maybe : []);
+  } catch (e) {
+    list = [];
+  }
   // sort by credits desc then random jitter as described
   const decorated = (list || []).map(r => ({...r, rand: Math.random()}))
     .sort((a,b)=> (b.credits - a.credits) || (b.rand - a.rand));
@@ -260,4 +266,3 @@ async function submitWatchProof(ad, captures) {
 
 // initial load
 loadAds().catch(()=>{ adsList.innerHTML = 'Failed to load ads.' });
-
