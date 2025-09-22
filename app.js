@@ -51,7 +51,7 @@ async function currentProjectId() {
   try {
     const p = await window.websim.getCurrentProject();
     return p?.id || 'unknown_project';
-  } catch { return 'unknown_project'; }
+  } catch (e) { return 'unknown_project'; }
 }
 
 // enforce websim-only URLs
