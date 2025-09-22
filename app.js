@@ -1,6 +1,7 @@
 /* Simple ad-tip + verification app using window.websim APIs and WebsimSocket records.
    Mobile-friendly minimal UI. */
 
+(async function main() {
 const form = document.getElementById('adForm');
 const adsList = document.getElementById('adsList');
 const refreshBtn = document.getElementById('refreshAds');
@@ -322,3 +323,5 @@ async function submitWatchProof(ad, captures, cameraBlob=null) {
 
 // initial load
 loadAds().catch(()=>{ adsList.innerHTML = 'Failed to load ads.' });
+
+})(); /* end main IIFE */
